@@ -20,7 +20,7 @@ func main() {
 		}),
 	))
 
-	logger := slog.With("context", "main.main")
+	logger := slog.With("context", "main.Main")
 
 	if err := runAPI(); err != nil {
 		logger.Error(err.Error())

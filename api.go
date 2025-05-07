@@ -14,7 +14,7 @@ const (
 )
 
 func runAPI() error {
-	logger := slog.With("context", "main.runAPI")
+	logger := slog.With("context", "main.RunAPI")
 
 	mux := http.NewServeMux()
 	mid := middleware.NewChain(
