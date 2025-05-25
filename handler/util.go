@@ -12,8 +12,10 @@ func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
 
 	w.WriteHeader(status)
 
-	if bodyBytes, err := json.Marshal(body); err == nil {
-		w.Header().Add("Content-Type", "application/json")
-		w.Write(bodyBytes)
+	if body != nil {
+		if bodyBytes, err := json.Marshal(body); err == nil {
+			w.Header().Add("Content-Type", "application/json")
+			w.Write(bodyBytes)
+		}
 	}
 }

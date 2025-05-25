@@ -6,12 +6,12 @@ import (
 	"net/http"
 )
 
-func Logger(next http.HandlerFunc) http.HandlerFunc {
+type Logger struct{}
+
+func (_ *Logger) Handle(next http.HandlerFunc) http.HandlerFunc {
 	logger := slog.With("context", "middleware.Logger")
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(_requestIdContext).(string)
-
 		next.ServeHTTP(w, r)
 
 		statusCode, ok := r.Context().Value("status").(int)
@@ -30,7 +30,7 @@ func Logger(next http.HandlerFunc) http.HandlerFunc {
 			context.Background(),
 			level,
 			r.Pattern,
-			slog.Group("request", "id", requestID, "from", r.RemoteAddr),
+			slog.Group("request", "from", r.RemoteAddr),
 			slog.Group("response", "status", statusCode),
 		)
 	}

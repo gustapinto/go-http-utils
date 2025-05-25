@@ -5,33 +5,32 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
-
-	"github.com/gustapinto/go-api-rate-limiter/bucket"
-	"github.com/redis/go-redis/v9"
 )
+
+type BucketErrorBehaviour int
 
 const (
-	_redisAddress = "localhost:6379"
+	AllowRequestsOnBucketError BucketErrorBehaviour = iota + 1
+	DenyRequestsOnBucketError
 )
 
-var (
-	_limitBucket     *bucket.Redis
-	_limitBucketOnce sync.Once
-)
+type RateLimiterBucket interface {
+	Allow(key string) (bool, error)
+}
 
-func RateLimiter(next http.HandlerFunc) http.HandlerFunc {
+type RateLimiter struct {
+	Bucket               RateLimiterBucket
+	BucketErrorBehaviour BucketErrorBehaviour
+}
+
+func (rl *RateLimiter) Handle(next http.HandlerFunc) http.HandlerFunc {
+	if rl.BucketErrorBehaviour == 0 {
+		rl.BucketErrorBehaviour = DenyRequestsOnBucketError
+	}
+
 	logger := slog.With("context", "middleware.RateLimiter")
 
-	_limitBucketOnce.Do(func() {
-		_limitBucket = bucket.NewRedis(5, 1, redis.NewClient(&redis.Options{
-			Addr: _redisAddress,
-		}))
-	})
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(_requestIdContext).(string)
-
 		requestKey := r.RemoteAddr
 		requestKeyType := "RemoteAddress"
 		if token := r.Header.Get("Authorization"); len(token) > 0 {
@@ -41,18 +40,39 @@ func RateLimiter(next http.HandlerFunc) http.HandlerFunc {
 
 		logger.Debug(
 			"Limit middleware",
-			slog.Group("request", "id", requestID, "key", requestKey, "keyType", requestKeyType, "context", "RateLimiter"),
+			slog.Group("request", "key", requestKey, "keyType", requestKeyType, "context", "RateLimiter"),
 		)
 
-		if !_limitBucket.Allow(requestKey) {
-			ctx := context.WithValue(r.Context(), "status", http.StatusTooManyRequests)
-			*r = *(r.WithContext(ctx))
+		allow, err := rl.Bucket.Allow(requestKey)
+		if err != nil {
+			switch rl.BucketErrorBehaviour {
+			case AllowRequestsOnBucketError:
+				rl.allow(w, r, next)
+				return
 
-			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error": "Too many requests"}`))
+			case DenyRequestsOnBucketError:
+				rl.deny(w, r)
+				return
+			}
+		}
+
+		if !allow {
+			rl.deny(w, r)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		rl.allow(w, r, next)
 	}
+}
+
+func (rl *RateLimiter) allow(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	next.ServeHTTP(w, r)
+}
+
+func (rl *RateLimiter) deny(w http.ResponseWriter, r *http.Request) {
+	ctx := context.WithValue(r.Context(), "status", http.StatusTooManyRequests)
+	*r = *(r.WithContext(ctx))
+
+	w.WriteHeader(http.StatusTooManyRequests)
+	w.Write([]byte(`{"error": "Too many requests"}`))
 }

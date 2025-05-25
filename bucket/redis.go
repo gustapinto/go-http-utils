@@ -110,31 +110,31 @@ func (rtb *Redis) refill(key string) error {
 	return rtb.setTokens(key, tokens)
 }
 
-func (rtb *Redis) Allow(key string) bool {
+func (rtb *Redis) Allow(key string) (bool, error) {
 	return rtb.AllowN(key, 1)
 }
 
-func (rtb *Redis) AllowN(key string, requestedTokens int64) bool {
+func (rtb *Redis) AllowN(key string, requestedTokens int64) (bool, error) {
 	rtb.mu.Lock()
 	defer rtb.mu.Unlock()
 
 	if err := rtb.refill(key); err != nil {
-		return false
+		return false, err
 	}
 
 	tokens, err := rtb.getOrSetTokens(key)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	if tokens <= 0 {
-		return false
+		return false, nil
 	}
 
 	newTokens := tokens - requestedTokens
 	if err := rtb.setTokens(key, newTokens); err != nil {
-		return false
+		return false, err
 	}
 
-	return true
+	return true, nil
 }

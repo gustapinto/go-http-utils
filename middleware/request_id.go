@@ -7,7 +7,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func WithRequestID(next http.HandlerFunc) http.HandlerFunc {
+const (
+	_requestIdHeader  = "X-RequestID"
+	_requestIdContext = "requestID"
+)
+
+type RequestID struct{}
+
+func (_ *RequestID) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Header.Get(_requestIdHeader)
 		if len(requestID) == 0 {

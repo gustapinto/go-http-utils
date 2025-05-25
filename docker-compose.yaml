@@ -1,5 +1,6 @@
 services:
   redis:
     image: "valkey/valkey:8.1.1-alpine"
+    container_name: "go-api-rate-limiter-redis"
     ports:
       - "6379:6379"

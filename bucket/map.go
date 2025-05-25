@@ -47,19 +47,19 @@ func (ktb *Map) refill(key string) {
 	ktb.lastRefill[key] = now
 }
 
-func (ktb *Map) Allow(key string) bool {
+func (ktb *Map) Allow(key string) (bool, error) {
 	return ktb.AllowN(key, 1)
 }
 
-func (ktb *Map) AllowN(key string, requestedTokens int64) bool {
+func (ktb *Map) AllowN(key string, requestedTokens int64) (bool, error) {
 	ktb.mu.Lock()
 	defer ktb.mu.Unlock()
 
 	ktb.refill(key)
 	if ktb.tokens[key] <= 0 {
-		return false
+		return false, nil
 	}
 
 	ktb.tokens[key] -= requestedTokens
-	return true
+	return true, nil
 }

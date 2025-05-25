@@ -4,7 +4,9 @@ import (
 	"net/http"
 )
 
-type Middleware func(http.HandlerFunc) http.HandlerFunc
+type Middleware interface {
+	Handle(next http.HandlerFunc) http.HandlerFunc
+}
 
 type Chain struct {
 	Middlewares []Middleware
@@ -26,7 +28,8 @@ func (mc *Chain) Handle(next http.HandlerFunc) http.HandlerFunc {
 	handler := next
 
 	for i := (len(mc.Middlewares) - 1); i >= 0; i-- {
-		handler = mc.Middlewares[i](handler)
+		middleware := mc.Middlewares[i]
+		handler = middleware.Handle(handler)
 	}
 
 	return handler.ServeHTTP

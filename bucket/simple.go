@@ -41,19 +41,19 @@ func (tb *Simple) refill() {
 	tb.lastRefill = now
 }
 
-func (tb *Simple) Allow() bool {
+func (tb *Simple) Allow() (bool, error) {
 	return tb.AllowN(1)
 }
 
-func (tb *Simple) AllowN(requestedTokens int64) bool {
+func (tb *Simple) AllowN(requestedTokens int64) (bool, error) {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
 
 	tb.refill()
 	if tb.tokens <= 0 {
-		return false
+		return false, nil
 	}
 
 	tb.tokens -= requestedTokens
-	return true
+	return true, nil
 }
